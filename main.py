@@ -39,21 +39,34 @@ def main():
         types.Content(role="user", parts=[types.Part(text=prompt)])
     ]
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=messages,
-        config=config
-    )
-    if response.function_calls:
-        for function_call in response.function_calls:
-            print(call_functions(function_call))            
-    else:
-        print(response.text)
-    if verbose_flag:
-        print("Prompt tokens: ", response.usage_metadata.prompt_token_count)
-        print("Response tokens: ", response.usage_metadata.candidates_token_count)
-        return
-    
+    for _ in range(20):
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=messages,
+            config=config
+        )
+        
+        if not response or not response.usage_metadata:
+            print("Response is malformed")
+            return 
 
+        if verbose_flag:
+            print("Prompt tokens: ", response.usage_metadata.prompt_token_count)
+            print("Response tokens: ", response.usage_metadata.candidates_token_count)
+
+        if response.candidates:
+            for candidate in response.candidates:
+                if not candidate or not candidate.content:
+                    continue
+                messages.append(candidate.content)
+        if response.function_calls:
+            for function_call in response.function_calls:
+                result = call_functions(function_call, verbose_flag)
+                messages.append(result)
+        else:
+            print(response.text)
+            return
+
+    
 if __name__ == "__main__":
     main()
